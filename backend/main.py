@@ -6,6 +6,7 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 from services.ai_service import summarize_text, generate_social_post
+from services.youtube_service import is_youtube_url, get_youtube_transcript
 
 
 load_dotenv()
@@ -22,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
-# Define request models
+
 class SummarizeRequest(BaseModel):
     text: str
     length: Optional[str] = "medium"  #these are the default lengths, tones, platforms when the user doesnt select anything
@@ -33,6 +34,12 @@ class SocialPostRequest(BaseModel):
     platform: Optional[str] = "linkedin"  
     tone: Optional[str] = "professional"  
 
+class YouTubeTranscriptRequest(BaseModel):
+    url: str
+    
+class TranscriptResponse(BaseModel):
+    transcript: str
+
 class SummarizeResponse(BaseModel):
     summary: str
 
@@ -40,40 +47,51 @@ class SocialPostResponse(BaseModel):
     post: str
 
 
-#FastAPI endpoints that define the root, health, and social-post in REST API
+#FastAPI endpoints that define the root, health, summarize, youtube, and social-post in REST API
 @app.get("/", response_class=HTMLResponse)
+
 async def root():
-    """Redirect to API documentation"""
+    """redirects to API documentation"""
     return RedirectResponse(url="/docs")
 
 @app.get("/api/health")
+
 async def health_check():
-    """Check if the API is running"""
+    """checks if the API is running"""
     return {"status": "ok", "message": "Content Repurposer API is running"}
 
-@app.post("/api/summarize", response_model=SummarizeResponse)
-async def summarize(request: SummarizeRequest):
-    """Generate a summary of the provided text"""
-    if not request.text:
-        raise HTTPException(status_code=400, detail="No text provided")
+@app.post("/api/youtube-transcript", response_model=TranscriptResponse)
+
+async def youtube_transcript(request: YouTubeTranscriptRequest):
+    """extracts transcript from a YouTube video URL"""
+    if not request.url:
+        raise HTTPException(400, "No URL provided")
     
-    try:
-        summary = summarize_text(request.text, request.length, request.tone)
-        return SummarizeResponse(summary=summary)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if not is_youtube_url(request.url):
+        raise HTTPException(400, "Invalid YouTube URL")
+    
+    transcript = await get_youtube_transcript(request.url)
+    return TranscriptResponse(transcript=transcript)
+
+@app.post("/api/summarize", response_model=SummarizeResponse)
+
+async def summarize(request: SummarizeRequest):
+    """generates a summary of the provided text"""
+    if not request.text:
+        raise HTTPException(400, "No text provided")
+    
+    summary = summarize_text(request.text, request.length, request.tone)
+    return SummarizeResponse(summary=summary)
 
 @app.post("/api/social-post", response_model=SocialPostResponse)
+
 async def social_post(request: SocialPostRequest):
-    """Generate a social media post based on the provided text"""
+    """generates a social media post based on the provided text"""
     if not request.text:
-        raise HTTPException(status_code=400, detail="No text provided")
+        raise HTTPException(400, "No text provided")
     
-    try:
-        post = generate_social_post(request.text, request.platform, request.tone)
-        return SocialPostResponse(post=post)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    post = generate_social_post(request.text, request.platform, request.tone)
+    return SocialPostResponse(post=post)
 
 #runs when uvicorn is reloaded
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+
+const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
 
 export default function Home() {
   const [inputText, setText] = useState('');
@@ -8,10 +11,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('summarize'); //summarize is default option
+  const [isYouTubeUrl, setIsYouTubeUrl] = useState(false);
+  const [fetchingTranscript, setFetchingTranscript] = useState(false);
   
 
-
   // AI outputs given user selection that includes error catching
+
   // Summary options
   const [summaryLength, setSummaryLength] = useState('medium'); //base selections when user doesnt do anything
   const [summaryTone, setSummaryTone] = useState('neutral');
@@ -20,11 +25,39 @@ export default function Home() {
   const [platform, setPlatform] = useState('linkedin');
   const [postTone, setPostTone] = useState('professional');
 
+  // Check if input text is a YouTube URL
+  useEffect(() => {
+    setIsYouTubeUrl(YOUTUBE_REGEX.test(inputText.trim()));
+  }, [inputText]);
+
+  // fetches youTube transcripts and error checks
+  const fetchYouTubeTranscript = async (url) => {
+    setFetchingTranscript(true);
+    
+    try {
+      const response = await fetch('http://localhost:8000/api/youtube-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch transcript');
+      
+      return data.transcript;
+    } catch (err) {
+      setError('Could not fetch transcript');
+      return null;
+    } finally {
+      setFetchingTranscript(false);
+    }
+  };
+
   const handleSummarize = async (e) => {
     e.preventDefault(); // Pretty much just makes sure the request gets sent straight to my API instead of gathering all the data and potentially making page reload
     
     if (!inputText.trim()) {
-      setError('Please enter some text to summarize');
+      setError('Please enter content to summarize');
       return;
     }
     
@@ -32,26 +65,34 @@ export default function Home() {
     setError('');
     
     try {
+      let textToSummarize = inputText;
+      
+      // If it's a YouTube URL, fetch the transcript first
+      if (isYouTubeUrl) {
+        const transcript = await fetchYouTubeTranscript(inputText);
+        if (!transcript) return;
+        textToSummarize = transcript;
+      }
+      
       const response = await fetch('http://localhost:8000/api/summarize', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          text: inputText, 
+          text: textToSummarize, 
           length: summaryLength, 
           tone: summaryTone 
         }),
       });
       
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || 'Failed to generate summary');
-      }
       
-      setOutputText(data.summary);
+      if (response.ok) {
+        setOutputText(data.summary);
+      } else {
+        setError('Summary generation failed');
+      }
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      setError('Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -61,7 +102,7 @@ export default function Home() {
     e.preventDefault(); 
     
     if (!inputText.trim()) {
-      setError('Please enter some text to convert to a social post');
+      setError('Please enter content for social post');
       return;
     }
     
@@ -69,26 +110,34 @@ export default function Home() {
     setError('');
     
     try {
+      let textToPost = inputText;
+      
+      // If it's a YouTube URL, fetch the transcript first
+      if (isYouTubeUrl) {
+        const transcript = await fetchYouTubeTranscript(inputText);
+        if (!transcript) return;
+        textToPost = transcript;
+      }
+      
       const response = await fetch('http://localhost:8000/api/social-post', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          text: inputText,
-          platform: platform,
+          text: textToPost,
+          platform,
           tone: postTone
         }),
       });
       
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || 'Failed to generate social post');
-      }
       
-      setOutputText(data.post);
+      if (response.ok) {
+        setOutputText(data.post);
+      } else {
+        setError('Failed to create social post');
+      }
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      setError('Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -105,20 +154,23 @@ export default function Home() {
         {/* two-column layout for input and output */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* input panel */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-2 text-black">Input Content</h2>
-            <p className="text-sm text-black mb-4">Paste your article, blog post, or any text</p>
+            <p className="text-sm text-black mb-4">
+              Paste your article, blog post, or YouTube URL
+              {isYouTubeUrl && <span className="ml-1 text-red-500">(YouTube URL)</span>}
+            </p>
             <textarea
               rows={10}
-              className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-black"
+              className="w-full p-3 border border-gray-300 rounded-md text-black"
               value={inputText}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Paste your content here..."
-            /> {/* Discovered textarea pretty recently, just allows user to change the size of the text box to what they want and makes things easy for formatting*/}
+              placeholder="Paste your content or YouTube URL here..."
+            />
           </div>
           
           {/* output Panel */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-2 text-black">Generated Content</h2>
             <p className="text-sm text-black mb-4">Your repurposed content will appear here</p>
             
@@ -133,7 +185,7 @@ export default function Home() {
               <textarea
                 readOnly
                 rows={10}
-                className="w-full p-3 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-black"
+                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-black"
                 value={outputText}
                 placeholder="Generated content will appear here..."
               />
@@ -153,7 +205,7 @@ export default function Home() {
         </div>
         
         {/* controls  */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-white p-6 rounded-lg ">
           <h2 className="text-xl font-semibold mb-2 text-black">Content Transformation</h2>
           <p className="text-sm text-black mb-4">Choose how to repurpose your content</p>
           
@@ -193,7 +245,7 @@ export default function Home() {
                   </label>
                   <select
                     id="summaryLength"
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-black" 
+                    className="w-full p-2 border border-gray-300 rounded-md text-black" 
                     value={summaryLength}
                     onChange={(e) => setSummaryLength(e.target.value)}
                   >
@@ -209,7 +261,7 @@ export default function Home() {
                   </label>
                   <select
                     id="summaryTone"
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-black"
+                    className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={summaryTone}
                     onChange={(e) => setSummaryTone(e.target.value)}
                   >
@@ -222,10 +274,12 @@ export default function Home() {
               
               <button
                 type="submit"
-                className="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                disabled={loading}
+                className="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-md"
+                disabled={loading || fetchingTranscript}
               >
-                {loading ? 'Generating Summary...' : 'Generate Summary'}
+                {loading ? 'Generating Summary...' : 
+                 fetchingTranscript ? 'Fetching YouTube Transcript...' : 
+                 'Generate Summary'}
               </button>
             </form>
           )}
@@ -240,7 +294,7 @@ export default function Home() {
                   </label>
                   <select
                     id="platform"
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-black"
+                    className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={platform}
                     onChange={(e) => setPlatform(e.target.value)}
                   >
@@ -256,23 +310,26 @@ export default function Home() {
                   </label>
                   <select
                     id="postTone"
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-black"
+                    className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={postTone}
                     onChange={(e) => setPostTone(e.target.value)}
                   >
                     <option value="professional">Professional</option>
                     <option value="casual">Casual</option>
                     <option value="enthusiastic">Enthusiastic</option>
+                    <option value="informative">Informative</option>
                   </select>
                 </div>
               </div>
               
               <button
                 type="submit"
-                className="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                disabled={loading}
+                className="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-md"
+                disabled={loading || fetchingTranscript}
               >
-                {loading ? 'Generating Post...' : 'Generate Social Post'}
+                {loading ? 'Generating Social Post...' : 
+                 fetchingTranscript ? 'Fetching YouTube Transcript...' : 
+                 'Generate Social Post'}
               </button>
             </form>
           )}
