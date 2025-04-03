@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 
 
 const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
@@ -25,17 +25,20 @@ export default function Home() {
   const [platform, setPlatform] = useState('linkedin');
   const [postTone, setPostTone] = useState('professional');
 
+  // API base URL - fallback to localhost if env variable is not set
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
   // Check if input text is a YouTube URL
   useEffect(() => {
     setIsYouTubeUrl(YOUTUBE_REGEX.test(inputText.trim()));
   }, [inputText]);
 
   // fetches youTube transcripts and error checks
-  const fetchYouTubeTranscript = async (url) => {
+  const fetchYouTubeTranscript = async (url: string): Promise<string | null> => {
     setFetchingTranscript(true);
     
     try {
-      const response = await fetch('http://localhost:8000/api/youtube-transcript', {
+      const response = await fetch(`${API_URL}/api/youtube-transcript`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -53,7 +56,7 @@ export default function Home() {
     }
   };
 
-  const handleSummarize = async (e) => {
+  const handleSummarize = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); // Pretty much just makes sure the request gets sent straight to my API instead of gathering all the data and potentially making page reload
     
     if (!inputText.trim()) {
@@ -74,7 +77,7 @@ export default function Home() {
         textToSummarize = transcript;
       }
       
-      const response = await fetch('http://localhost:8000/api/summarize', {
+      const response = await fetch(`${API_URL}/api/summarize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -98,7 +101,7 @@ export default function Home() {
     }
   };
 
-  const handleSocialPost = async (e) => {
+  const handleSocialPost = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); 
     
     if (!inputText.trim()) {
@@ -119,7 +122,7 @@ export default function Home() {
         textToPost = transcript;
       }
       
-      const response = await fetch('http://localhost:8000/api/social-post', {
+      const response = await fetch(`${API_URL}/api/social-post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -164,7 +167,7 @@ export default function Home() {
               rows={10}
               className="w-full p-3 border border-gray-300 rounded-md text-black"
               value={inputText}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
               placeholder="Paste your content or YouTube URL here..."
             />
           </div>
@@ -247,7 +250,7 @@ export default function Home() {
                     id="summaryLength"
                     className="w-full p-2 border border-gray-300 rounded-md text-black" 
                     value={summaryLength}
-                    onChange={(e) => setSummaryLength(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setSummaryLength(e.target.value)}
                   >
                     <option value="short">Short (2-3 sentences)</option>
                     <option value="medium">Medium (4-6 sentences)</option>
@@ -263,7 +266,7 @@ export default function Home() {
                     id="summaryTone"
                     className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={summaryTone}
-                    onChange={(e) => setSummaryTone(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setSummaryTone(e.target.value)}
                   >
                     <option value="neutral">Neutral</option>
                     <option value="formal">Formal</option>
@@ -296,7 +299,7 @@ export default function Home() {
                     id="platform"
                     className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={platform}
-                    onChange={(e) => setPlatform(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setPlatform(e.target.value)}
                   >
                     <option value="linkedin">LinkedIn</option>
                     <option value="twitter">Twitter</option>
@@ -312,7 +315,7 @@ export default function Home() {
                     id="postTone"
                     className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={postTone}
-                    onChange={(e) => setPostTone(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setPostTone(e.target.value)}
                   >
                     <option value="professional">Professional</option>
                     <option value="casual">Casual</option>

@@ -14,6 +14,12 @@ load_dotenv()
 
 app = FastAPI(title="Content Repurposer API")
 
+# Allow frontend domains, set this properly after deployment
+frontend_urls = [
+    "https://your-frontend-url.vercel.app",  # Update this with your Vercel domain
+    "http://localhost:3000",  # For local development
+]
+
 #initializes Cross-Origin resource sharing to allow front-end to talk to the back-end no matter what the origin, method, or header is
 app.add_middleware(
     CORSMiddleware,
@@ -93,7 +99,8 @@ async def social_post(request: SocialPostRequest):
     post = generate_social_post(request.text, request.platform, request.tone)
     return SocialPostResponse(post=post)
 
-#runs when uvicorn is reloaded
+#runs when uvicorn is reloaded -- and on render
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
