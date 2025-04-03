@@ -1,6 +1,5 @@
 import os
 import google.generativeai as genai
-from typing import Optional
 from dotenv import load_dotenv
 
 
