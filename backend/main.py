@@ -14,9 +14,8 @@ load_dotenv()
 
 app = FastAPI(title="Content Repurposer API")
 
-# Allow frontend domains, set this properly after deployment
 frontend_urls = [
-    "https://your-frontend-url.vercel.app",  
+    "https://content-repurposer-delta.vercel.app/",  
     "http://localhost:3000",  
 ]
 
