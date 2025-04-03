@@ -16,8 +16,8 @@ app = FastAPI(title="Content Repurposer API")
 
 # Allow frontend domains, set this properly after deployment
 frontend_urls = [
-    "https://your-frontend-url.vercel.app",  # Update this with your Vercel domain
-    "http://localhost:3000",  # For local development
+    "https://your-frontend-url.vercel.app",  
+    "http://localhost:3000",  
 ]
 
 #initializes Cross-Origin resource sharing to allow front-end to talk to the back-end no matter what the origin, method, or header is
