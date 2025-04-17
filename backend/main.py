@@ -117,11 +117,15 @@ async def generate_social_media_post(request: SocialPostRequest):
 async def generate_visuals(request: VisualPostRequest):
     """Generates Matplotlib charts or a DALL-E infographic based on text analysis"""
     try:
+        print(f"Received request for visual post generation.")
         image_uris = await generate_visual_post(request.text)
         if not image_uris:
+            print("Visual generation returned no images.")
             raise HTTPException(status_code=500, detail="Failed to generate visuals")
+        print("Visual post generation successful.")
         return VisualPostResponse(image_data_list=image_uris)
     except Exception as e:
+        print(f"ERROR in generate_visuals: {type(e).__name__} - {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 #Run on reload

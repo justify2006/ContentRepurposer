@@ -6,15 +6,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
 
 export default function Home() {
-  // Input states
+  // Input
   const [inputText, setInputText] = useState('');
   const [isYouTubeUrl, setIsYouTubeUrl] = useState(false);
   
-  // Output states
+  // Output
   const [outputText, setOutputText] = useState('');
   const [outputImages, setOutputImages] = useState<string[]>([]);
   
-  // UI states
+  // UI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('summarize');
@@ -153,7 +153,6 @@ export default function Home() {
     }
   };
 
-  // main body
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8">
@@ -161,9 +160,8 @@ export default function Home() {
         <h1 className="text-3xl font-bold mb-2 text-center">Content Repurposer</h1>
         <p className="text-center text-black mb-8">Transform your content into summaries, social media posts, and visual highlights with AI</p>
         
-        {/* two-column layout for input and output */}
+        {/*Input and output panels*/}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* input panel */}
           <div className="bg-white p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-2 text-black">Input Content</h2>
             <p className="text-sm text-black mb-4">
@@ -179,12 +177,10 @@ export default function Home() {
             />
           </div>
           
-          {/* output Panel */}
           <div className="bg-white p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-2 text-black">Generated Content</h2>
             <p className="text-sm text-black mb-4">Your repurposed content will appear here</p>
             
-            {/*throw error in front-end if something goes bad with API or backend */}
             {error && (
               <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
                 {error}
@@ -227,7 +223,7 @@ export default function Home() {
           </div>
         </div>
         
-        {/* controls  */}
+        {/* controls*/}
         <div className="bg-white p-6 rounded-lg ">
           <h2 className="text-xl font-semibold mb-2 text-black">Content Transformation</h2>
           <p className="text-sm text-black mb-4">Choose how to repurpose your content</p>
@@ -268,7 +264,7 @@ export default function Home() {
             </div>
           </div>
           
-          {/* summary tab info */}
+          {/* summary tab*/}
           {activeTab === 'summarize' && (
             <form onSubmit={handleSummarize} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
