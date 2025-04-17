@@ -1,6 +1,5 @@
 import re
 from urllib.parse import urlparse, parse_qs
-import httpx
 from youtube_transcript_api import YouTubeTranscriptApi
 
 def is_youtube_url(url: str) -> bool:
@@ -45,8 +44,8 @@ async def get_youtube_transcript(url: str) -> str:
         transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
         transcript_text = format_transcript(transcript_list)
         
-        # Set max length of transcript to 15000 characters because otherwise, it might be too long
-        max_length = 15000  
+        # Set max length of transcript to 20000--otherwise, might take too long to process
+        max_length = 20000  
         if len(transcript_text) > max_length:
             transcript_text = transcript_text[:max_length] + "...\n[Transcript truncated due to length]"
             

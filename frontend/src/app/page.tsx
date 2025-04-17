@@ -1,82 +1,67 @@
 'use client';
 
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 
-
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
 
 export default function Home() {
-  const [inputText, setText] = useState('');
+  // Input states
+  const [inputText, setInputText] = useState('');
+  const [isYouTubeUrl, setIsYouTubeUrl] = useState(false);
+  
+  // Output states
   const [outputText, setOutputText] = useState('');
+  const [outputImages, setOutputImages] = useState<string[]>([]);
+  
+  // UI states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('summarize'); //summarize is default option
-  const [isYouTubeUrl, setIsYouTubeUrl] = useState(false);
-  const [fetchingTranscript, setFetchingTranscript] = useState(false);
+  const [activeTab, setActiveTab] = useState('summarize');
   
-
-  // AI outputs given user selection that includes error catching
-
-  // Summary options
-  const [summaryLength, setSummaryLength] = useState('medium'); //base selections when user doesnt do anything
+  // Settings
+  const [summaryLength, setSummaryLength] = useState('medium');
   const [summaryTone, setSummaryTone] = useState('neutral');
-  
-  // Social post options
   const [platform, setPlatform] = useState('linkedin');
   const [postTone, setPostTone] = useState('professional');
 
-  // API base URL - fallback to localhost if env variable is not set
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-  // Check if input text is a YouTube URL
   useEffect(() => {
     setIsYouTubeUrl(YOUTUBE_REGEX.test(inputText.trim()));
   }, [inputText]);
 
-  // fetches youTube transcripts and error checks
-  const fetchYouTubeTranscript = async (url: string): Promise<string | null> => {
-    setFetchingTranscript(true);
+  const fetchYouTubeTranscript = async (url: string) => {
+    const response = await fetch(`${API_URL}/api/youtube-transcript`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
     
-    try {
-      const response = await fetch(`${API_URL}/api/youtube-transcript`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-      
-      const data = await response.json();
-      if (!response.ok) throw new Error('Failed to fetch transcript');
-      
-      return data.transcript;
-    } catch (err) {
-      setError('Could not fetch transcript');
-      return null;
-    } finally {
-      setFetchingTranscript(false);
-    }
+    if (!response.ok) throw new Error('Failed to fetch transcript');
+    const data = await response.json();
+    return data.transcript;
+  };
+
+  const resetOutput = () => {
+    setError('');
+    setOutputText('');
+    setOutputImages([]);
   };
 
   const handleSummarize = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Pretty much just makes sure the request gets sent straight to my API instead of gathering all the data and potentially making page reload
-    
+    e.preventDefault();
     if (!inputText.trim()) {
       setError('Please enter content to summarize');
       return;
     }
-    
+
     setLoading(true);
-    setError('');
+    resetOutput();
     
     try {
-      let textToSummarize = inputText;
-      
-      // If it's a YouTube URL, fetch the transcript first
-      if (isYouTubeUrl) {
-        const transcript = await fetchYouTubeTranscript(inputText);
-        if (!transcript) return;
-        textToSummarize = transcript;
-      }
-      
+      const textToSummarize = isYouTubeUrl 
+        ? await fetchYouTubeTranscript(inputText)
+        : inputText;
+
       const response = await fetch(`${API_URL}/api/summarize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,40 +73,30 @@ export default function Home() {
       });
       
       const data = await response.json();
-      
-      if (response.ok) {
-        setOutputText(data.summary);
-      } else {
-        setError('Summary generation failed');
-      }
+      if (!response.ok) throw new Error(data.detail || 'Failed to generate summary');
+      setOutputText(data.summary);
     } catch (err) {
-      setError('Something went wrong');
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSocialPost = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); 
-    
+    e.preventDefault();
     if (!inputText.trim()) {
       setError('Please enter content for social post');
       return;
     }
-    
+
     setLoading(true);
-    setError('');
+    resetOutput();
     
     try {
-      let textToPost = inputText;
-      
-      // If it's a YouTube URL, fetch the transcript first
-      if (isYouTubeUrl) {
-        const transcript = await fetchYouTubeTranscript(inputText);
-        if (!transcript) return;
-        textToPost = transcript;
-      }
-      
+      const textToPost = isYouTubeUrl 
+        ? await fetchYouTubeTranscript(inputText)
+        : inputText;
+
       const response = await fetch(`${API_URL}/api/social-post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,14 +108,46 @@ export default function Home() {
       });
       
       const data = await response.json();
-      
-      if (response.ok) {
-        setOutputText(data.post);
-      } else {
-        setError('Failed to create social post');
-      }
+      if (!response.ok) throw new Error(data.detail || 'Failed to create social post');
+      setOutputText(data.post);
     } catch (err) {
-      setError('Something went wrong');
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVisualPost = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!inputText.trim()) {
+      setError('Please enter content for visual post');
+      return;
+    }
+
+    setLoading(true);
+    resetOutput();
+
+    try {
+      const textToVisualize = isYouTubeUrl 
+        ? await fetchYouTubeTranscript(inputText)
+        : inputText;
+
+      const response = await fetch(`${API_URL}/api/visual-post`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToVisualize }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Failed to generate visuals');
+      
+      if (!data.image_data_list?.length) {
+        throw new Error('No visuals were generated');
+      }
+      
+      setOutputImages(data.image_data_list);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -152,7 +159,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center p-8">
       <div className="w-full max-w-4xl">
         <h1 className="text-3xl font-bold mb-2 text-center">Content Repurposer</h1>
-        <p className="text-center text-black mb-8">Transform your content into summaries and social media posts with AI</p>
+        <p className="text-center text-black mb-8">Transform your content into summaries, social media posts, and visual highlights with AI</p>
         
         {/* two-column layout for input and output */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -167,7 +174,7 @@ export default function Home() {
               rows={10}
               className="w-full p-3 border border-gray-300 rounded-md text-black"
               value={inputText}
-              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
+              onChange={(e) => setInputText(e.target.value)}
               placeholder="Paste your content or YouTube URL here..."
             />
           </div>
@@ -184,14 +191,27 @@ export default function Home() {
               </div>
             )}
             
-            <div className="mb-4">
-              <textarea
-                readOnly
-                rows={10}
-                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-black"
-                value={outputText}
-                placeholder="Generated content will appear here..."
-              />
+            <div className="flex-grow mb-4 relative">
+              {outputImages.length > 0 ? (
+                <div className="space-y-2 overflow-auto h-full p-2">
+                  {outputImages.map((imgSrc, index) => (
+                    <img 
+                      key={index}
+                      src={imgSrc} 
+                      alt={`Generated Visual ${index + 1}`}
+                      className="max-w-full h-auto object-contain border border-gray-200 rounded"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  readOnly
+                  rows={10}
+                  className="w-full h-full p-3 border border-gray-300 rounded-md bg-gray-50 text-black"
+                  value={outputText}
+                  placeholder="Generated content will appear here..."
+                />
+              )}
             </div>
             
             {outputText && (
@@ -221,7 +241,7 @@ export default function Home() {
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-black hover:text-gray-700'
                 }`}
-                onClick={() => setActiveTab('summarize')}
+                onClick={() => {setActiveTab('summarize'); setOutputImages([])}}
               >
                 Generate Summary
               </button>
@@ -231,9 +251,19 @@ export default function Home() {
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-black hover:text-gray-700'
                 }`}
-                onClick={() => setActiveTab('social')}
+                onClick={() => {setActiveTab('social'); setOutputImages([])}}
               >
                 Create Social Post
+              </button>
+              <button
+                className={`py-2 px-4 font-medium text-sm ${
+                  activeTab === 'visual'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-black hover:text-gray-700'
+                }`}
+                onClick={() => {setActiveTab('visual'); setOutputText('')}}
+              >
+                Generate Visual Post
               </button>
             </div>
           </div>
@@ -250,7 +280,7 @@ export default function Home() {
                     id="summaryLength"
                     className="w-full p-2 border border-gray-300 rounded-md text-black" 
                     value={summaryLength}
-                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setSummaryLength(e.target.value)}
+                    onChange={(e) => setSummaryLength(e.target.value)}
                   >
                     <option value="short">Short (2-3 sentences)</option>
                     <option value="medium">Medium (4-6 sentences)</option>
@@ -266,7 +296,7 @@ export default function Home() {
                     id="summaryTone"
                     className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={summaryTone}
-                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setSummaryTone(e.target.value)}
+                    onChange={(e) => setSummaryTone(e.target.value)}
                   >
                     <option value="neutral">Neutral</option>
                     <option value="formal">Formal</option>
@@ -278,11 +308,9 @@ export default function Home() {
               <button
                 type="submit"
                 className="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-md"
-                disabled={loading || fetchingTranscript}
+                disabled={loading}
               >
-                {loading ? 'Generating Summary...' : 
-                 fetchingTranscript ? 'Fetching YouTube Transcript...' : 
-                 'Generate Summary'}
+                {loading ? 'Generating Summary...' : 'Generate Summary'}
               </button>
             </form>
           )}
@@ -299,7 +327,7 @@ export default function Home() {
                     id="platform"
                     className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={platform}
-                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setPlatform(e.target.value)}
+                    onChange={(e) => setPlatform(e.target.value)}
                   >
                     <option value="linkedin">LinkedIn</option>
                     <option value="twitter">Twitter</option>
@@ -315,7 +343,7 @@ export default function Home() {
                     id="postTone"
                     className="w-full p-2 border border-gray-300 rounded-md text-black"
                     value={postTone}
-                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setPostTone(e.target.value)}
+                    onChange={(e) => setPostTone(e.target.value)}
                   >
                     <option value="professional">Professional</option>
                     <option value="casual">Casual</option>
@@ -328,11 +356,26 @@ export default function Home() {
               <button
                 type="submit"
                 className="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-md"
-                disabled={loading || fetchingTranscript}
+                disabled={loading}
               >
-                {loading ? 'Generating Social Post...' : 
-                 fetchingTranscript ? 'Fetching YouTube Transcript...' : 
-                 'Generate Social Post'}
+                {loading ? 'Generating Social Post...' : 'Generate Social Post'}
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'visual' && (
+            <form onSubmit={handleVisualPost} className="space-y-4">
+              <div>
+                 <p className="text-sm text-gray-600 mb-4">
+                   Generate a simple infographic image highlighting the key points from your content.
+                 </p>
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2 px-4 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? 'Generating Image...' : 'Generate Visual(s)'}
               </button>
             </form>
           )}

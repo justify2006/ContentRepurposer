@@ -5,4 +5,7 @@ python-dotenv==1.0.0
 google-generativeai==0.3.1
 httpx==0.27.0 
 python-multipart==0.0.9
-youtube-transcript-api==0.6.1  
+youtube-transcript-api==0.6.1
+Pillow
+matplotlib
+openai 
