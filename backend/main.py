@@ -77,13 +77,20 @@ async def health_check():
             summary="Fetch YouTube Transcript")
 async def fetch_youtube_transcript(request: YouTubeTranscriptRequest):
     """Fetches the transcript from a valid YouTube video URL"""
-    if not is_youtube_url(str(request.url)):
+    url_str = str(request.url)
+    print(f"Received request for YouTube transcript: {url_str}")
+
+    if not is_youtube_url(url_str):
+        print(f"Validation failed: {url_str} is not a YouTube URL according to regex.")
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
     
     try:
-        transcript = await get_youtube_transcript(str(request.url))
+        print(f"Attempting to fetch transcript for: {url_str}")
+        transcript = await get_youtube_transcript(url_str)
+        print(f"Successfully fetched transcript for: {url_str}")
         return TranscriptResponse(transcript=transcript)
     except Exception as e:
+        print(f"ERROR fetching transcript for {url_str}: {type(e).__name__} - {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/summarize", 
